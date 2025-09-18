@@ -26,14 +26,16 @@ e2e-test/
 ├── pages/
 │   ├── LoginPage.js          # Login page object model
 │   ├── DashboardPage.js      # Dashboard page object model
-│   └── ForgotPasswordPage.js # Forgot password page object model
+│   ├── ForgotPasswordPage.js # Forgot password page object model
+│   └── CreateDiscountPage.js # Discount creation page object model
 └── tests/
-    └── auth.spec.js          # Complete authentication test suite
+    ├── auth.spec.js          # Complete authentication test suite
+    └── create-discount.spec.js # Comprehensive discount creation tests
 ```
 
 ## 🧪 Test Coverage
 
-The test suite includes 7 comprehensive authentication tests:
+### Authentication Tests (7 comprehensive tests)
 
 1. **Empty Field Validation** - Ensures client-side validation for required fields
 2. **Invalid Credentials** - Tests error handling for wrong email/password
@@ -43,19 +45,38 @@ The test suite includes 7 comprehensive authentication tests:
 6. **Email Format Validation** - Tests email validation on forgot password form
 7. **User Not Found Error** - Tests error handling for non-existent email addresses
 
+### Discount Creation Tests (13 comprehensive test suites)
+
+1. **Page Load & Defaults** - Verifies correct initial state and default values
+2. **Discount Code Validation** - Tests empty, format, length, and duplicate validations
+3. **Percentage Discount Flow** - Happy path for percentage-based discounts
+4. **Fixed Amount Flow** - Happy path for fixed amount discounts
+5. **Numeric Constraints** - Validates percentage, amount, and quantity limits
+6. **Min Balance vs Min Amount** - Tests radio group behavior and field resets
+7. **Auto-Display Exclusivity** - Tests global constraints for auto-display options
+8. **Email Management** - Validates email format, existence, and duplicate handling
+9. **AP Referral Validation** - Tests referral code format and existence
+10. **Package Management** - Tests popup flow and package ID validation
+11. **Status Toggle** - Tests active/inactive status functionality
+12. **Form Validation Fences** - Ensures invalid forms prevent submission
+13. **Expiration Date Logic** - Tests past/future date validation
+
 ## 🛠️ Installation
 
 1. **Clone and install dependencies:**
+
 ```bash
 npm install
 ```
 
 2. **Create environment configuration:**
+
 ```bash
 cp .env.example .env
 ```
 
 3. **Edit `.env` with your test environment details:**
+
 ```properties
 # Authentication Credentials
 ADMIN_EMAIL=administrator.bo@yopmail.com
@@ -75,21 +96,32 @@ LOGOUT_SUCCESS_URL=https://stg1-admin.wemastertrade.com/auth/login
 ## ▶️ Running Tests
 
 ### Run All Tests
+
 ```bash
 npm test
 ```
 
 ### Run with Visible Browser (for debugging)
+
 ```bash
 HEADLESS=false npm test
 ```
 
-### Run Specific Test
+### Run Specific Test File
+
 ```bash
+# Run only authentication tests
+npx vitest run tests/auth.spec.js
+
+# Run only discount creation tests
+npx vitest run tests/create-discount.spec.js
+
+# Run specific test case
 npx vitest run tests/auth.spec.js -t "should successfully login"
 ```
 
 ### Run with Verbose Output
+
 ```bash
 npx vitest run --reporter=verbose
 ```
@@ -97,19 +129,25 @@ npx vitest run --reporter=verbose
 ## 🏗️ Architecture
 
 ### Page Object Model (POM)
+
 Each page is represented by a class that encapsulates:
+
 - **Selectors**: XPath selectors optimized for Ant Design components
 - **Actions**: Methods for user interactions (click, type, submit)
 - **Validations**: Methods for checking page state and error messages
 
 ### WebDriver Utilities
+
 The `driver.js` utility provides:
+
 - **Driver Factory**: Consistent Chrome WebDriver configuration
 - **Wait Helpers**: Robust waiting mechanisms for dynamic content
 - **Error Handling**: Graceful handling of timeout and element issues
 
 ### Environment Configuration
+
 All test data and URLs are externalized to `.env` for:
+
 - **Security**: Credentials not stored in code
 - **Flexibility**: Easy switching between environments
 - **CI/CD Ready**: Environment-specific configuration support
@@ -118,18 +156,30 @@ All test data and URLs are externalized to `.env` for:
 
 ### Environment Variables
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `ADMIN_EMAIL` | Admin user email for testing | `admin@example.com` |
-| `ADMIN_PASSWORD` | Admin user password | `SecurePassword123` |
-| `HEADLESS` | Run browser in headless mode | `true` or `false` |
-| `BASE_URL` | Application base URL | `https://app.example.com` |
-| `LOGIN_URL` | Login page URL | `https://app.example.com/auth/login` |
-| `FORGOT_PASSWORD_URL` | Forgot password page URL | `https://app.example.com/auth/forgot-password` |
-| `DASHBOARD_URL` | Dashboard URL after login | `https://app.example.com/dashboard` |
-| `LOGOUT_SUCCESS_URL` | URL after successful logout | `https://app.example.com/auth/login` |
+| Variable              | Description                  | Example                                        |
+| --------------------- | ---------------------------- | ---------------------------------------------- |
+| `ADMIN_EMAIL`         | Admin user email for testing | `admin@example.com`                            |
+| `ADMIN_PASSWORD`      | Admin user password          | `SecurePassword123`                            |
+| `HEADLESS`            | Run browser in headless mode | `true` or `false`                              |
+| `BASE_URL`            | Application base URL         | `https://app.example.com`                      |
+| `LOGIN_URL`           | Login page URL               | `https://app.example.com/auth/login`           |
+| `FORGOT_PASSWORD_URL` | Forgot password page URL     | `https://app.example.com/auth/forgot-password` |
+| `DASHBOARD_URL`       | Dashboard URL after login    | `https://app.example.com/dashboard`            |
+| `LOGOUT_SUCCESS_URL`  | URL after successful logout  | `https://app.example.com/auth/login`           |
+
+### Optional Environment Variables (for Discount Tests)
+
+| Variable                 | Description                 | Usage                               |
+| ------------------------ | --------------------------- | ----------------------------------- |
+| `TEST_REGISTERED_EMAIL`  | Valid registered user email | Positive email validation tests     |
+| `TEST_VALID_AP_REFERRAL` | Valid AP referral code      | Positive referral validation tests  |
+| `TEST_PACKAGE_ID`        | Valid package ID            | Positive package validation tests   |
+| `TEST_CHALLENGE_ID`      | Valid challenge ID          | Positive challenge validation tests |
+
+_Note: If optional variables are not provided, corresponding positive tests will be skipped._
 
 ### Browser Configuration
+
 - **Chrome**: Uses Chrome browser with Selenium Manager
 - **Timeouts**: 10s implicit, 60s page load, 60s script execution
 - **Window Size**: 1920x1080 for consistent screenshots
@@ -140,22 +190,27 @@ All test data and URLs are externalized to `.env` for:
 ### Common Issues and Solutions
 
 **Element Not Found:**
+
 - Check if selectors match current DOM structure
 - Verify page has loaded completely
 - Update XPath selectors in page objects
 
 **Timeout Errors:**
+
 - Increase wait timeouts in `driver.js`
 - Check network connectivity and page load times
 - Verify target elements are actually rendered
 
 **Authentication Failures:**
+
 - Verify credentials in `.env` file are correct
 - Check if test environment is accessible
 - Ensure URLs point to correct environment
 
 ### Debug Mode
+
 Run tests with visible browser to observe behavior:
+
 ```bash
 HEADLESS=false npm test
 ```
@@ -163,6 +218,7 @@ HEADLESS=false npm test
 ## 🚦 CI/CD Integration
 
 ### GitHub Actions Example
+
 ```yaml
 name: E2E Tests
 on: [push, pull_request]
@@ -173,7 +229,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-node@v3
         with:
-          node-version: '18'
+          node-version: "18"
       - run: npm install
       - run: npm test
         env:
@@ -185,18 +241,21 @@ jobs:
 ## 📚 Extending Tests
 
 ### Adding New Tests
+
 1. Create test methods in `auth.spec.js`
 2. Follow existing naming convention
 3. Use page object methods for interactions
 4. Include proper assertions and logging
 
 ### Adding New Pages
+
 1. Create new page class in `pages/` directory
 2. Follow POM pattern with selectors and methods
 3. Import and initialize in test files
 4. Add comprehensive error handling
 
 ### Updating Selectors
+
 1. Use XPath for flexibility with dynamic content
 2. Prefer text-based selectors for stability
 3. Include multiple fallback selectors

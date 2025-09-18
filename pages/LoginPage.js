@@ -30,14 +30,14 @@ class LoginPage {
         "//input[@type='checkbox'] | //span[contains(@class,'ant-checkbox')]"
       ),
       submitButton: By.xpath(
-        "//button[@type='submit'] | //button[text()='Submit']"
+        "//button[@type='submit'] | //button[text()='Submit'] | //button[contains(@class, 'ant-btn-primary')] | //button[contains(text(), 'Login')] | //input[@type='submit'] | //button[contains(@class, 'submit')]"
       ),
       forgotPasswordLink: By.xpath(
         "//a[contains(text(), 'Forgot your password')]"
       ),
       loginForm: By.xpath("//form | //div[contains(@class, 'ant-form')]"),
       errorMessage: By.xpath(
-        "//div[contains(@class,'ant-message')] | //div[contains(@class,'ant-notification')] | //*[contains(text(),'Incorrect email or password')] | //*[contains(text(),'The account does not exist')] | //*[contains(text(),'Make sure you entered correctly')] | //*[contains(text(),'Invalid')] | //*[contains(text(),'error')] | //*[@class='error']"
+        "//div[contains(@class,'ant-message')] | //div[contains(@class,'ant-notification')] | //*[contains(text(),'Incorrect email or password')] | //*[contains(text(),'The account does not exist')] | //*[contains(text(),'Make sure you entered correctly')] | //*[contains(text(),'Invalid')] | //*[contains(text(),'error')] | //*[@class='error'] | //*[contains(@class, 'alert')] | //*[contains(@class, 'message')] | //*[contains(text(), 'fail')] | //*[contains(text(), 'denied')]"
       ),
     };
   }
@@ -66,8 +66,13 @@ class LoginPage {
       this.driver,
       this.selectors.usernameInput
     );
+    // Clear field multiple times to ensure it's empty
     await usernameField.clear();
-    await usernameField.sendKeys(username);
+    await usernameField.sendKeys("");
+    await this.driver.executeScript("arguments[0].value = '';", usernameField);
+    if (username) {
+      await usernameField.sendKeys(username);
+    }
   }
 
   /**
@@ -79,8 +84,13 @@ class LoginPage {
       this.driver,
       this.selectors.passwordInput
     );
+    // Clear field multiple times to ensure it's empty
     await passwordField.clear();
-    await passwordField.sendKeys(password);
+    await passwordField.sendKeys("");
+    await this.driver.executeScript("arguments[0].value = '';", passwordField);
+    if (password) {
+      await passwordField.sendKeys(password);
+    }
   }
 
   /**
@@ -230,16 +240,67 @@ class LoginPage {
   }
 
   /**
+   * Clear all form fields
+   */
+  async clearAllFields() {
+    try {
+      // Clear username field
+      const usernameField = await DriverFactory.waitForVisible(
+        this.driver,
+        this.selectors.usernameInput,
+        5000
+      );
+      await usernameField.clear();
+      await this.driver.executeScript(
+        "arguments[0].value = '';",
+        usernameField
+      );
+
+      // Clear password field
+      const passwordField = await DriverFactory.waitForVisible(
+        this.driver,
+        this.selectors.passwordInput,
+        5000
+      );
+      await passwordField.clear();
+      await this.driver.executeScript(
+        "arguments[0].value = '';",
+        passwordField
+      );
+
+      // Click on username field to trigger any validation
+      await usernameField.click();
+    } catch (error) {
+      console.warn("Failed to clear all fields:", error.message);
+    }
+  }
+
+  /**
    * Get error message text
    */
   async getErrorMessage() {
     try {
-      const errorElement = await DriverFactory.waitForVisible(
-        this.driver,
-        this.selectors.errorMessage,
-        3000
+      // First try to find any error elements
+      const errorElements = await this.driver.findElements(
+        this.selectors.errorMessage
       );
-      return await errorElement.getText();
+
+      if (errorElements.length === 0) {
+        // Also check for any elements with error-related text content
+        const allElements = await this.driver.findElements(
+          By.xpath(
+            "//*[contains(text(), 'Incorrect') or contains(text(), 'invalid') or contains(text(), 'wrong') or contains(text(), 'fail') or contains(text(), 'error') or contains(text(), 'denied')]"
+          )
+        );
+
+        if (allElements.length > 0) {
+          return await allElements[0].getText();
+        }
+
+        return null;
+      }
+
+      return await errorElements[0].getText();
     } catch (error) {
       return null;
     }

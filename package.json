@@ -8,7 +8,11 @@
     "test": "vitest run --reporter=verbose",
     "test:watch": "vitest",
     "test:headless": "set HEADLESS=true && vitest run",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "test:auth": "vitest run tests/auth.spec.js --reporter=verbose",
+    "test:discount": "vitest run tests/create-discount.spec.js --reporter=verbose",
+    "test:auth:headless": "set HEADLESS=true && vitest run tests/auth.spec.js --reporter=verbose",
+    "test:discount:headless": "set HEADLESS=true && vitest run tests/create-discount.spec.js --reporter=verbose"
   },
   "keywords": [
     "e2e",

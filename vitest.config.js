@@ -19,6 +19,17 @@ export default defineConfig({
       concurrent: false,
     },
 
+    // Pool configuration to prevent multiple worker processes
+    pool: "threads",
+    poolOptions: {
+      threads: {
+        singleThread: true,
+      },
+    },
+
+    // Max concurrency
+    maxConcurrency: 1,
+
     // File patterns
     include: ["tests/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
     exclude: ["node_modules", "dist", ".git"],
