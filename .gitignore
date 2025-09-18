@@ -229,3 +229,6 @@ debug-*.log
 # OS generated files
 .DS_Store?
 Icon?
+
+# GitHub workflows and configuration
+.github
