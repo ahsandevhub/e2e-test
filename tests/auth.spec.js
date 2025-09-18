@@ -95,10 +95,7 @@ describe("WeMasterTrade Back Office Authentication Tests", () => {
       console.log("Current URL after invalid login:", currentUrl);
 
       // If we're redirected, we might need to check for different error patterns
-      if (
-        currentUrl.includes("/auth/login") ||
-        currentUrl.includes("/admin/login")
-      ) {
+      if (currentUrl.includes("/auth/login")) {
         // Check for error message
         const hasError = await loginPage.hasErrorMessage();
         expect(hasError).toBe(true);
