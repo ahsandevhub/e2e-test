@@ -1,788 +1,364 @@
-import dotenv from "dotenv";
-import { By, DriverFactory } from "../utils/driver.js";
+import { By } from "selenium-webdriver";
 
-// Load environment variables
-dotenv.config();
-
-class CreateDiscountPage {
+export default class DiscountPage {
   constructor(driver) {
     this.driver = driver;
-    this.createUrl = process.env.CREATE_DISCOUNT_URL;
-
-    // Selectors optimized for actual form structure based on screenshot
     this.selectors = {
-      // Main form fields - based on actual debug data
-      codeInput: By.xpath(
-        "//input[@id='code'] | //input[contains(@placeholder,'510ZERO')] | //input[@placeholder='e.g. \"510ZERO\"'] | //input[@name='discountCode'] | //label[contains(text(),'Discount Code')]/..//input"
+      discountCodeInput: By.css("input#code"),
+      percentageDiscountRadio: By.css('input[type="radio"][value="1"]'),
+      fixedAmountDiscountRadio: By.css('input[type="radio"][value="2"]'),
+      percentageOffInput: By.css("input#percentageOff"),
+      maximumAmountInput: By.css("input#maximumDiscountAmount"),
+      // Fixed-amount field appears only when its radio is selected; tolerate id/name variants
+      discountAmountInput: By.css(
+        'input#discountAmount, input[placeholder*="Discount Amount"], input[id*="discountAmount"]'
       ),
-      // Toggle switches - likely implemented as buttons, not checkbox inputs
-      publicCheckbox: By.xpath(
-        "//*[contains(text(),'Public to user')]/following-sibling::*//button | //*[contains(text(),'Public to user')]/..//button | //label[contains(text(),'Public to user')]//button | //button[contains(@class,'switch') or contains(@class,'toggle')]"
+      publicToUserCheckbox: By.css("button#isPublicToUser"),
+      activeToggle: By.css("button#isActive"),
+      tradingCapAutoDisplay: By.css("button#isDisplayForTradingCapital"),
+      customizePkgAutoDisplay: By.css("button#isDisplayForCustomizePackage"),
+      specificQuantityInput: By.css("input#specificQuantity"),
+      descriptionInput: By.css("textarea#description"),
+      expirationDateInput: By.css("input#expirationDate"),
+      submitButton: By.xpath(
+        // Accept both "Add" and "Create" labels across builds
+        '//button[contains(@class,"ant-btn-primary")][.//span[normalize-space()="Add" or normalize-space()="Create"]]'
       ),
-      autoDisplayTradingCheckbox: By.xpath(
-        "//*[contains(text(),'Auto Display in Checkout For Trading Capital')]/following-sibling::*//button | //*[contains(text(),'Auto Display in Checkout For Trading Capital')]/..//button | //label[contains(text(),'Auto Display in Checkout For Trading Capital')]//button"
+      errorMessage: By.css(
+        ".ant-form-item-explain-error, .ant-form-item-explain"
       ),
-      autoDisplayCustomCheckbox: By.xpath(
-        "//*[contains(text(),'Auto display in Customize Package')]/following-sibling::*//button | //*[contains(text(),'Auto display in Customize Package')]/..//button | //label[contains(text(),'Auto display in Customize Package')]//button"
-      ),
-
-      // Radio buttons for discount type - based on debug data showing name="«rf»"
-      percentRadio: By.xpath(
-        "(//input[@type='radio' and @name='«rf»'])[1] | //span[contains(text(),'Percentage Discount')]/..//input[@type='radio'] | //label[contains(text(),'Percentage Discount')]//input[@type='radio']"
-      ),
-      fixedRadio: By.xpath(
-        "(//input[@type='radio' and @name='«rf»'])[2] | //span[contains(text(),'Fixed Amount Discount')]/..//input[@type='radio'] | //label[contains(text(),'Fixed Amount Discount')]//input[@type='radio']"
-      ),
-
-      // Percentage discount fields - based on debug data
-      percentageOffInput: By.xpath(
-        "//input[@id='percentageOff'] | //input[@placeholder='Enter percentage off'] | //input[@name='percentageOff'] | //label[contains(text(),'Percentage Off')]/..//input"
-      ),
-      maximumAmountInput: By.xpath(
-        "//input[@id='maximumDiscountAmount'] | //input[@placeholder='Enter maximum amount'] | //input[@name='maximumAmount'] | //label[contains(text(),'Maximum amount')]/..//input"
-      ),
-
-      // Fixed discount field
-      fixedAmountInput: By.xpath(
-        "//input[@placeholder='Enter discount amount'] | //input[@name='fixedAmount'] | //input[@name='discountAmount'] | //label[contains(text(),'Discount Amount')]/..//input"
-      ),
-
-      // Minimum value radio buttons - based on debug data showing name="«rg»"
-      minInitialBalanceRadio: By.xpath(
-        "(//input[@type='radio' and @name='«rg»'])[1] | //label[contains(text(),'Minimum Initial Balance')]//input[@type='radio'] | //span[contains(text(),'Minimum Initial Balance')]//input[@type='radio']"
-      ),
-      minInitialBalanceInput: By.xpath(
-        "//input[@placeholder='Enter Minimum Initial Balance'] | //input[@name='minInitialBalance'] | //label[contains(text(),'Minimum Initial Balance')]/..//input[@type='text' or @type='number']"
-      ),
-      minAmountRadio: By.xpath(
-        "(//input[@type='radio' and @name='«rg»'])[2] | //label[contains(text(),'Minimum Amount')]//input[@type='radio'] | //span[contains(text(),'Minimum Amount')]//input[@type='radio']"
-      ),
-      minAmountInput: By.xpath(
-        "//input[@placeholder='Enter Minimum Amount'] | //input[@name='minAmount'] | //label[contains(text(),'Minimum Amount')]/..//input[@type='text' or @type='number']"
-      ),
-
-      // Other form fields
-      descriptionInput: By.xpath(
-        "//textarea[@placeholder='Enter Description'] | //textarea[@name='description'] | //input[@name='description'] | //label[contains(text(),'Description')]/..//textarea"
-      ),
-      expirationDateInput: By.xpath(
-        "//input[@placeholder='Select date'] | //input[@name='expirationDate'] | //input[@type='date'] | //label[contains(text(),'Expiration Date')]/..//input"
-      ),
-      specifyQuantityInput: By.xpath(
-        "//input[@id='specificQuantity'] | //input[@placeholder='Enter Quantities'] | //input[@name='specifyQuantity'] | //input[@name='maxQuantityUsage'] | //label[contains(text(),'Specific Quantity Usage')]/..//input"
-      ),
-      maxPerUserInput: By.xpath(
-        "//input[@name='maxPerUser'] | //input[@name='maxQuantityPerUser'] | //label[contains(text(),'Max Quantity per user')]/..//input"
-      ),
-
-      // Package management
-      addPackageButton: By.xpath(
-        "//button[contains(text(),'Add New Package')] | //button[contains(text(),'Add Package')] | //button[@name='addPackage'] | //*[contains(@class,'btn') and contains(text(),'Add Package')]"
-      ),
-      packagePopup: By.xpath(
-        "//div[contains(@class,'modal') or contains(@class,'popup') or contains(@class,'dialog')] | //div[@role='dialog']"
-      ),
-      packageIdInput: By.xpath(
-        "//input[@name='packageId'] | //input[contains(@placeholder,'Package ID')] | //input[contains(@placeholder,'Challenge ID')] | //label[contains(text(),'Package ID')]/..//input"
-      ),
-      packageSaveButton: By.xpath(
-        "//button[contains(text(),'Save') and ancestor::*[contains(@class,'modal') or contains(@class,'popup')]] | //div[contains(@class,'modal')]//button[contains(text(),'Save')]"
-      ),
-
-      // Email management
-      addEmailInput: By.xpath(
-        "//input[@placeholder='Enter Email'] | //input[@name='email'] | //input[contains(@placeholder,'email')] | //label[contains(text(),'Specific Email')]/..//input"
-      ),
-      addEmailButton: By.xpath(
-        "//label[contains(text(),'Specific Email')]/..//button[contains(text(),'Add')] | //input[@placeholder='Enter Email']/following-sibling::button | //button[contains(text(),'Add') and preceding-sibling::*//input[@placeholder='Enter Email']]"
-      ),
-
-      // AP Referral
-      apReferralInput: By.xpath(
-        "//input[@placeholder='Enter AP Referral'] | //input[@name='apReferral'] | //input[contains(@placeholder,'AP Referral')] | //label[contains(text(),'AP Referral')]/..//input"
-      ),
-      apReferralAddButton: By.xpath(
-        "//label[contains(text(),'AP Referral')]/..//button[contains(text(),'Add')] | //input[@placeholder='Enter AP Referral']/following-sibling::button | //button[contains(text(),'Add') and preceding-sibling::*//input[@placeholder='Enter AP Referral']]"
-      ),
-
-      // Status toggle - likely implemented as button
-      statusToggle: By.xpath(
-        "//*[contains(text(),'Active')]/following-sibling::*//button | //*[contains(text(),'Active')]/..//button | //label[contains(text(),'Active')]//button | //button[contains(@class,'switch') or contains(@class,'toggle')]"
-      ),
-
-      // Action buttons
-      cancelButton: By.xpath(
-        "//button[contains(text(),'Cancel')] | //button[@name='cancel'] | //*[contains(@class,'btn') and contains(text(),'Cancel')]"
-      ),
-      createButton: By.xpath(
-        "//button[contains(text(),'Create')] | //button[contains(text(),'Save')] | //button[contains(text(),'Submit')] | //button[@type='submit'] | //*[contains(@class,'btn-primary') or contains(@class,'primary')]"
-      ),
-
-      // Feedback elements
-      toast: By.xpath(
-        "//div[contains(@class,'toast') or contains(@class,'notification') or contains(@class,'message') or contains(@class,'ant-message')] | //*[contains(@class,'success') or contains(@class,'error') or contains(@class,'info')]"
-      ),
-      formErrors: By.xpath(
-        "//div[contains(@class,'error') or contains(@class,'invalid-feedback') or contains(@class,'ant-form-item-explain')] | //*[contains(@class,'field-error') or contains(@class,'validation-error')]"
-      ),
-
-      // Specific error messages
-      codeRequiredError: By.xpath(
-        "//*[contains(text(),'Please fill out this field') or contains(text(),'required')]"
-      ),
-      codeFormatError: By.xpath(
-        "//*[contains(text(),'Accept only latin letters, numbers, underscore') or contains(text(),'no space permitted')]"
-      ),
-      codeLengthError: By.xpath(
-        "//*[contains(text(),'Only accepted 15 characters for code')]"
-      ),
-      codeDuplicateError: By.xpath(
-        "//*[contains(text(),'This code has already been created')]"
-      ),
-      percentageRangeError: By.xpath(
-        "//*[contains(text(),'Enter a number greater than 0 and less than or equal to 100')]"
-      ),
-      amountRangeError: By.xpath(
-        "//*[contains(text(),'Enter a number greater than 0 and less than or equal to 100,000')]"
-      ),
-      quantityError: By.xpath(
-        "//*[contains(text(),'Value must be greater than 0')]"
-      ),
-      maxPerUserError: By.xpath(
-        "//*[contains(text(),'Max Quantity per user must less than Max Quantity usage')]"
-      ),
-      pastDateError: By.xpath(
-        "//*[contains(text(),'Please choose date later than current date')]"
-      ),
-      emailRequiredError: By.xpath(
-        "//*[contains(text(),'Please fill out this field')]"
-      ),
-      emailFormatError: By.xpath(
-        "//*[contains(text(),'Please enter a valid email')]"
-      ),
-      emailNotExistError: By.xpath(
-        "//*[contains(text(),'Email does not exist in registered users')]"
-      ),
-      emailDuplicateError: By.xpath(
-        "//*[contains(text(),'Email has already been added')]"
-      ),
-      apReferralRequiredError: By.xpath(
-        "//*[contains(text(),'Please fill out this field')]"
-      ),
-      apReferralInvalidError: By.xpath(
-        "//*[contains(text(),'Invalid referral code')]"
-      ),
-      packageRequiredError: By.xpath(
-        "//*[contains(text(),'Please fill out this field')]"
-      ),
-      packageNotExistError: By.xpath("//*[contains(text(),'does not exist')]"),
-      packageDuplicateError: By.xpath(
-        "//*[contains(text(),'already been added')]"
+      successToast: By.css(
+        ".ant-notification-notice-message, .ant-message-success"
       ),
     };
   }
 
-  // Navigation
-  async goto() {
-    await this.driver.get(this.createUrl);
+  async clearAllFields() {
+    // Clear discount code
+    try {
+      await this.driver.findElement(this.selectors.discountCodeInput).clear();
+    } catch (e) {}
 
-    // Check if we were redirected (e.g., to login page)
-    const currentUrl = await this.driver.getCurrentUrl();
-    if (!currentUrl.includes("/discount/create")) {
-      throw new Error(
-        `Expected to be on discount create page, but redirected to: ${currentUrl}. Please ensure you are authenticated before calling goto().`
+    // Clear percentage fields if visible
+    try {
+      await this.driver.findElement(this.selectors.percentageOffInput).clear();
+    } catch (e) {}
+
+    try {
+      await this.driver.findElement(this.selectors.maximumAmountInput).clear();
+    } catch (e) {}
+
+    // Clear other optional fields
+    try {
+      await this.driver
+        .findElement(this.selectors.specificQuantityInput)
+        .clear();
+    } catch (e) {}
+
+    try {
+      await this.driver.findElement(this.selectors.descriptionInput).clear();
+    } catch (e) {}
+  }
+
+  async fillRequiredFields(code = null, percentage = 10, maxAmount = 100) {
+    // Fill discount code
+    const discountCode = code || `TEST${Date.now()}`.slice(0, 15);
+    await this.fillDiscountCode(discountCode);
+
+    // Select percentage discount and fill amounts
+    await this.selectPercentageDiscount();
+    await this.fillPercentageOff(percentage);
+    await this.fillMaximumAmount(maxAmount);
+
+    // Fill minimum values fields that are visible in the screenshot
+    try {
+      // Try different possible selectors for minimum initial balance
+      let minimumInitialBalance = await this.driver.findElements(
+        By.css('input[placeholder*="Minimum Initial Balance"]')
       );
+      if (minimumInitialBalance.length === 0) {
+        minimumInitialBalance = await this.driver.findElements(
+          By.css('input[id*="minimumInitialBalance"]')
+        );
+      }
+      if (minimumInitialBalance.length === 0) {
+        minimumInitialBalance = await this.driver.findElements(
+          By.xpath(
+            '//label[contains(text(),"Minimum Initial Balance")]/..//input'
+          )
+        );
+      }
+
+      if (minimumInitialBalance.length > 0) {
+        await this.driver.executeScript(
+          "arguments[0].scrollIntoView();",
+          minimumInitialBalance[0]
+        );
+        await this.driver.sleep(200);
+        await minimumInitialBalance[0].clear();
+        await minimumInitialBalance[0].sendKeys("100");
+        console.log("✅ Filled minimum initial balance: 100");
+      }
+    } catch (e) {
+      console.log("⚠️ Could not find/fill minimum initial balance:", e.message);
     }
 
-    // Wait for the main form to be visible
-    await DriverFactory.waitForVisible(
-      this.driver,
-      this.selectors.codeInput,
-      10000
-    );
-  }
-
-  // Debug helper to identify available inputs on the page
-  async debugFormElements() {
     try {
-      console.log("🔍 Debugging form elements...");
-
-      // Find all input elements
-      const inputs = await this.driver.findElements(By.xpath("//input"));
-      console.log(`Found ${inputs.length} input elements`);
-
-      for (let i = 0; i < Math.min(inputs.length, 10); i++) {
-        try {
-          const type = await inputs[i].getAttribute("type");
-          const name = await inputs[i].getAttribute("name");
-          const placeholder = await inputs[i].getAttribute("placeholder");
-          const id = await inputs[i].getAttribute("id");
-          console.log(
-            `Input ${
-              i + 1
-            }: type="${type}", name="${name}", placeholder="${placeholder}", id="${id}"`
-          );
-        } catch (e) {
-          console.log(
-            `Input ${i + 1}: Error getting attributes - ${e.message}`
-          );
-        }
+      // Try different possible selectors for minimum amount
+      let minimumAmount = await this.driver.findElements(
+        By.css('input[placeholder*="Minimum Amount"]')
+      );
+      if (minimumAmount.length === 0) {
+        minimumAmount = await this.driver.findElements(
+          By.css('input[id*="minimumAmount"]')
+        );
+      }
+      if (minimumAmount.length === 0) {
+        minimumAmount = await this.driver.findElements(
+          By.xpath('//label[contains(text(),"Minimum Amount")]/..//input')
+        );
       }
 
-      // Find all buttons
-      const buttons = await this.driver.findElements(By.xpath("//button"));
-      console.log(`Found ${buttons.length} button elements`);
-
-      for (let i = 0; i < Math.min(buttons.length, 5); i++) {
-        try {
-          const text = await buttons[i].getText();
-          const type = await buttons[i].getAttribute("type");
-          console.log(`Button ${i + 1}: text="${text}", type="${type}"`);
-        } catch (e) {
-          console.log(
-            `Button ${i + 1}: Error getting attributes - ${e.message}`
-          );
-        }
+      if (minimumAmount.length > 0) {
+        await this.driver.executeScript(
+          "arguments[0].scrollIntoView();",
+          minimumAmount[0]
+        );
+        await this.driver.sleep(200);
+        await minimumAmount[0].clear();
+        await minimumAmount[0].sendKeys("50");
+        console.log("✅ Filled minimum amount: 50");
       }
-    } catch (error) {
-      console.log("Debug failed:", error.message);
+    } catch (e) {
+      console.log("⚠️ Could not find/fill minimum amount:", e.message);
     }
-  }
 
-  // Debug helper to examine toggle states specifically
-  async debugToggles() {
+    // Fill description field if it exists (might be required)
     try {
-      console.log("🔍 Debugging toggle elements...");
-
-      const toggleSelectors = [
-        { name: "Public", selector: this.selectors.publicCheckbox },
-        {
-          name: "Auto Display Trading",
-          selector: this.selectors.autoDisplayTradingCheckbox,
-        },
-        {
-          name: "Auto Display Custom",
-          selector: this.selectors.autoDisplayCustomCheckbox,
-        },
-        { name: "Status", selector: this.selectors.statusToggle },
-      ];
-
-      for (const toggle of toggleSelectors) {
-        try {
-          const element = await this.driver.findElement(toggle.selector);
-          const classes = await element.getAttribute("class");
-          const ariaChecked = await element.getAttribute("aria-checked");
-          const text = await element.getText();
-          console.log(
-            `Toggle ${toggle.name}: class="${classes}", aria-checked="${ariaChecked}", text="${text}"`
-          );
-        } catch (e) {
-          console.log(`Toggle ${toggle.name}: Not found - ${e.message}`);
-        }
+      const description = await this.driver.findElements(
+        this.selectors.descriptionInput
+      );
+      if (description.length > 0) {
+        await this.driver.executeScript(
+          "arguments[0].scrollIntoView();",
+          description[0]
+        );
+        await this.driver.sleep(200);
+        await description[0].clear();
+        await description[0].sendKeys("Test discount created by automation");
+        console.log("✅ Filled description");
       }
-    } catch (error) {
-      console.log(`❌ Error debugging toggles: ${error.message}`);
+    } catch (e) {
+      console.log("⚠️ Could not find/fill description:", e.message);
     }
+
+    return discountCode;
   }
 
-  // Getters for form elements
-  get codeInput() {
-    return this.driver.findElement(this.selectors.codeInput);
-  }
-
-  get publicCheckbox() {
-    return this.driver.findElement(this.selectors.publicCheckbox);
-  }
-
-  get autoDisplayTradingCheckbox() {
-    return this.driver.findElement(this.selectors.autoDisplayTradingCheckbox);
-  }
-
-  get autoDisplayCustomCheckbox() {
-    return this.driver.findElement(this.selectors.autoDisplayCustomCheckbox);
-  }
-
-  get percentRadio() {
-    return this.driver.findElement(this.selectors.percentRadio);
-  }
-
-  get percentageOffInput() {
-    return this.driver.findElement(this.selectors.percentageOffInput);
-  }
-
-  get maximumAmountInput() {
-    return this.driver.findElement(this.selectors.maximumAmountInput);
-  }
-
-  get fixedRadio() {
-    return this.driver.findElement(this.selectors.fixedRadio);
-  }
-
-  get fixedAmountInput() {
-    return this.driver.findElement(this.selectors.fixedAmountInput);
-  }
-
-  get minInitialBalanceRadio() {
-    return this.driver.findElement(this.selectors.minInitialBalanceRadio);
-  }
-
-  get minInitialBalanceInput() {
-    return this.driver.findElement(this.selectors.minInitialBalanceInput);
-  }
-
-  get minAmountRadio() {
-    return this.driver.findElement(this.selectors.minAmountRadio);
-  }
-
-  get minAmountInput() {
-    return this.driver.findElement(this.selectors.minAmountInput);
-  }
-
-  get descriptionInput() {
-    return this.driver.findElement(this.selectors.descriptionInput);
-  }
-
-  get expirationDateInput() {
-    return this.driver.findElement(this.selectors.expirationDateInput);
-  }
-
-  get specifyQuantityInput() {
-    return this.driver.findElement(this.selectors.specifyQuantityInput);
-  }
-
-  get maxPerUserInput() {
-    return this.driver.findElement(this.selectors.maxPerUserInput);
-  }
-
-  get addPackageButton() {
-    return this.driver.findElement(this.selectors.addPackageButton);
-  }
-
-  get packagePopup() {
-    return this.driver.findElement(this.selectors.packagePopup);
-  }
-
-  get packageIdInput() {
-    return this.driver.findElement(this.selectors.packageIdInput);
-  }
-
-  get packageSaveButton() {
-    return this.driver.findElement(this.selectors.packageSaveButton);
-  }
-
-  get addEmailInput() {
-    return this.driver.findElement(this.selectors.addEmailInput);
-  }
-
-  get addEmailButton() {
-    return this.driver.findElement(this.selectors.addEmailButton);
-  }
-
-  get apReferralInput() {
-    return this.driver.findElement(this.selectors.apReferralInput);
-  }
-
-  get apReferralAddButton() {
-    return this.driver.findElement(this.selectors.apReferralAddButton);
-  }
-
-  get statusToggle() {
-    return this.driver.findElement(this.selectors.statusToggle);
-  }
-
-  get cancelButton() {
-    return this.driver.findElement(this.selectors.cancelButton);
-  }
-
-  get createButton() {
-    return this.driver.findElement(this.selectors.createButton);
-  }
-
-  get toast() {
-    return this.driver.findElement(this.selectors.toast);
-  }
-
-  get formErrors() {
-    return this.driver.findElements(this.selectors.formErrors);
-  }
-
-  // Helper methods
-  async fillDiscountCode(value) {
-    const input = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.codeInput
+  async fillDiscountCode(code) {
+    const input = await this.driver.findElement(
+      this.selectors.discountCodeInput
     );
     await input.clear();
-    await input.sendKeys(value);
+    await input.sendKeys(code);
   }
 
-  async choosePercentageFlow({ percent, maxUSD }) {
-    // Select percentage radio if not already selected
-    const percentRadio = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.percentRadio
+  async getDiscountCodeValue() {
+    const input = await this.driver.findElement(
+      this.selectors.discountCodeInput
     );
-    if (!(await percentRadio.isSelected())) {
-      await percentRadio.click();
-    }
+    return await input.getAttribute("value");
+  }
 
-    // Fill percentage off
-    const percentInput = await DriverFactory.waitForClickable(
-      this.driver,
+  async selectPercentageDiscount() {
+    const radio = await this.driver.findElement(
+      this.selectors.percentageDiscountRadio
+    );
+    await radio.click();
+  }
+
+  async selectFixedAmountDiscount() {
+    const radio = await this.driver.findElement(
+      this.selectors.fixedAmountDiscountRadio
+    );
+    await radio.click();
+  }
+
+  async fillPercentageOff(value) {
+    const input = await this.driver.findElement(
       this.selectors.percentageOffInput
     );
-    await percentInput.clear();
-    await percentInput.sendKeys(percent.toString());
-
-    // Fill maximum amount if provided
-    if (maxUSD !== undefined) {
-      const maxAmountInput = await DriverFactory.waitForClickable(
-        this.driver,
-        this.selectors.maximumAmountInput
-      );
-      await maxAmountInput.clear();
-      await maxAmountInput.sendKeys(maxUSD.toString());
-    }
+    await input.clear();
+    await input.sendKeys(value.toString());
   }
 
-  async chooseFixedFlow({ amountUSD }) {
-    // Select fixed amount radio
-    const fixedRadio = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.fixedRadio
-    );
-    await fixedRadio.click();
-
-    // Fill discount amount
-    const amountInput = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.fixedAmountInput
-    );
-    await amountInput.clear();
-    await amountInput.sendKeys(amountUSD.toString());
-  }
-
-  async setMinInitialBalance(value) {
-    // Select the radio button first
-    const radio = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.minInitialBalanceRadio
-    );
-    await radio.click();
-
-    // Fill the input
-    const input = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.minInitialBalanceInput
+  async fillMaximumAmount(value) {
+    const input = await this.driver.findElement(
+      this.selectors.maximumAmountInput
     );
     await input.clear();
     await input.sendKeys(value.toString());
   }
 
-  async setMinAmount(value) {
-    // Select the radio button first
-    const radio = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.minAmountRadio
-    );
-    await radio.click();
+  async fillDiscountAmount(value) {
+    // First ensure Fixed Amount Discount is selected to make the field visible
+    await this.selectFixedAmountDiscount();
+    await this.driver.sleep(500); // Wait for UI to update
 
-    // Fill the input
-    const input = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.minAmountInput
+    // Look for a discount amount input that appears when fixed amount is selected
+    const input = await this.driver.findElement(
+      this.selectors.discountAmountInput
     );
     await input.clear();
     await input.sendKeys(value.toString());
   }
 
-  async setExpiration(dateStrDDMMYYYY) {
-    const input = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.expirationDateInput
+  async setPublicToUser(checked) {
+    const toggle = await this.driver.findElement(
+      this.selectors.publicToUserCheckbox
     );
-    await input.clear();
-    await input.sendKeys(dateStrDDMMYYYY);
-  }
-
-  async setQuantities({ total, perUser }) {
-    if (total !== undefined) {
-      const totalInput = await DriverFactory.waitForClickable(
-        this.driver,
-        this.selectors.specifyQuantityInput
-      );
-      await totalInput.clear();
-      await totalInput.sendKeys(total.toString());
-    }
-
-    if (perUser !== undefined) {
-      const perUserInput = await DriverFactory.waitForClickable(
-        this.driver,
-        this.selectors.maxPerUserInput
-      );
-      await perUserInput.clear();
-      await perUserInput.sendKeys(perUser.toString());
-    }
-  }
-
-  async addPackageId(pkgIdOrChallengeId) {
-    // Open popup
-    const addButton = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.addPackageButton
-    );
-    await addButton.click();
-
-    // Wait for popup and fill package ID
-    const packageInput = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.packageIdInput
-    );
-    await packageInput.sendKeys(pkgIdOrChallengeId);
-
-    // Save
-    const saveButton = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.packageSaveButton
-    );
-    await saveButton.click();
-
-    // Wait for popup to close
-    await DriverFactory.waitForGone(this.driver, this.selectors.packagePopup);
-  }
-
-  async addEmail(email) {
-    const input = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.addEmailInput
-    );
-    await input.sendKeys(email);
-
-    const addButton = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.addEmailButton
-    );
-    await addButton.click();
-  }
-
-  async addApReferral(code) {
-    const input = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.apReferralInput
-    );
-    await input.sendKeys(code);
-
-    const addButton = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.apReferralAddButton
-    );
-    await addButton.click();
-  }
-
-  async toggleAutoDisplayTrading(on) {
-    const checkbox = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.autoDisplayTradingCheckbox
-    );
-    const isChecked = await checkbox.isSelected();
-    if (isChecked !== on) {
-      await checkbox.click();
-    }
-  }
-
-  async toggleAutoDisplayCustomized(on) {
-    const checkbox = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.autoDisplayCustomCheckbox
-    );
-    const isChecked = await checkbox.isSelected();
-    if (isChecked !== on) {
-      await checkbox.click();
-    }
-  }
-
-  async togglePublic(on) {
-    const checkbox = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.publicCheckbox
-    );
-    const isChecked = await checkbox.isSelected();
-    if (isChecked !== on) {
-      await checkbox.click();
-    }
-  }
-
-  async toggleStatus(on) {
-    const toggle = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.statusToggle
-    );
-    const isActive = await toggle.isSelected();
-    if (isActive !== on) {
+    const isChecked = (await toggle.getAttribute("aria-checked")) === "true";
+    if (isChecked !== checked) {
       await toggle.click();
     }
   }
 
-  async submitCreate() {
-    const button = await DriverFactory.waitForClickable(
-      this.driver,
-      this.selectors.createButton
-    );
-    await button.click();
-  }
-
-  async expectToastContains(text) {
-    const toast = await DriverFactory.waitForVisible(
-      this.driver,
-      this.selectors.toast,
-      10000
-    );
-    const toastText = await toast.getText();
-    if (!toastText.toLowerCase().includes(text.toLowerCase())) {
-      throw new Error(
-        `Expected toast to contain "${text}", but got: "${toastText}"`
-      );
+  async setActive(checked) {
+    const toggle = await this.driver.findElement(this.selectors.activeToggle);
+    const isChecked = (await toggle.getAttribute("aria-checked")) === "true";
+    if (isChecked !== checked) {
+      await toggle.click();
     }
   }
 
-  async expectInlineErrorNear(fieldLabel, expectedText) {
-    // Look for error messages near the field or anywhere in form errors
-    const errorElements = await this.driver.findElements(
-      this.selectors.formErrors
-    );
-    let found = false;
-
-    for (const errorElement of errorElements) {
-      try {
-        const errorText = await errorElement.getText();
-        if (errorText.includes(expectedText)) {
-          found = true;
-          break;
-        }
-      } catch (e) {
-        // Element might be stale, continue
-        continue;
-      }
-    }
-
-    if (!found) {
-      // Also check specific error selectors based on the expected text
-      const specificSelectors = {
-        "Please fill out this field": this.selectors.codeRequiredError,
-        "Accept only latin letters": this.selectors.codeFormatError,
-        "Only accepted 15 characters": this.selectors.codeLengthError,
-        "This code has already been created": this.selectors.codeDuplicateError,
-        "Enter a number greater than 0 and less than or equal to 100":
-          this.selectors.percentageRangeError,
-        "Enter a number greater than 0 and less than or equal to 100,000":
-          this.selectors.amountRangeError,
-        "Value must be greater than 0": this.selectors.quantityError,
-        "Max Quantity per user must less than": this.selectors.maxPerUserError,
-        "Please choose date later than current date":
-          this.selectors.pastDateError,
-        "Please enter a valid email": this.selectors.emailFormatError,
-        "Email does not exist": this.selectors.emailNotExistError,
-        "Email has already been added": this.selectors.emailDuplicateError,
-        "Invalid referral code": this.selectors.apReferralInvalidError,
-      };
-
-      for (const [key, selector] of Object.entries(specificSelectors)) {
-        if (expectedText.includes(key)) {
-          try {
-            await DriverFactory.waitForVisible(this.driver, selector, 3000);
-            found = true;
-            break;
-          } catch (e) {
-            // Continue to next selector
-          }
-        }
-      }
-    }
-
-    if (!found) {
-      throw new Error(
-        `Expected inline error "${expectedText}" near field "${fieldLabel}", but not found`
-      );
-    }
-  }
-
-  // Utility methods for checking element states
-  async isPercentageSelected() {
-    const radio = await this.driver.findElement(this.selectors.percentRadio);
-    return await radio.isSelected();
-  }
-
-  async isFixedSelected() {
-    const radio = await this.driver.findElement(this.selectors.fixedRadio);
-    return await radio.isSelected();
-  }
-
-  // Toggle methods (Ant Design switches using aria-checked)
-  async isPublicChecked() {
+  async submit() {
     try {
-      const toggleButton = await this.driver.findElement(
-        this.selectors.publicCheckbox
-      );
-      const ariaChecked = await toggleButton.getAttribute("aria-checked");
-      return ariaChecked === "true";
-    } catch (error) {
-      console.log(`❌ Error checking public toggle state: ${error.message}`);
-      return false;
-    }
-  }
+      const button = await this.driver.findElement(this.selectors.submitButton);
 
-  async isAutoDisplayTradingChecked() {
-    try {
-      const toggleButton = await this.driver.findElement(
-        this.selectors.autoDisplayTradingCheckbox
+      // Scroll to button and ensure it's visible
+      await this.driver.executeScript(
+        "arguments[0].scrollIntoView(true);",
+        button
       );
-      const ariaChecked = await toggleButton.getAttribute("aria-checked");
-      return ariaChecked === "true";
-    } catch (error) {
+      await this.driver.sleep(300);
+
+      // Check if button is enabled and clickable
+      const isEnabled = await button.isEnabled();
+      const isDisplayed = await button.isDisplayed();
+      const disabled = await button.getAttribute("disabled");
+
       console.log(
-        `❌ Error checking auto display trading toggle state: ${error.message}`
+        `Button state - enabled: ${isEnabled}, displayed: ${isDisplayed}, disabled attr: ${disabled}`
       );
-      return false;
-    }
-  }
 
-  async isAutoDisplayCustomChecked() {
-    try {
-      const toggleButton = await this.driver.findElement(
-        this.selectors.autoDisplayCustomCheckbox
-      );
-      const ariaChecked = await toggleButton.getAttribute("aria-checked");
-      return ariaChecked === "true";
-    } catch (error) {
+      if (!isEnabled || disabled !== null) {
+        console.log("⚠️ Submit button appears disabled, waiting...");
+        await this.driver.sleep(1000);
+      }
+
+      // Try normal click first
+      await button.click();
+      console.log("✅ Submit button clicked successfully");
+    } catch (e) {
       console.log(
-        `❌ Error checking auto display custom toggle state: ${error.message}`
+        "⚠️ Normal click failed, trying JavaScript click:",
+        e.message
       );
-      return false;
+      // If clicking fails, try JavaScript click
+      const button = await this.driver.findElement(this.selectors.submitButton);
+      await this.driver.executeScript("arguments[0].click();", button);
+      console.log("✅ JavaScript click executed");
     }
   }
 
-  async isStatusActive() {
+  async pageHasErrorText(regex) {
+    const nodes = await this.driver.findElements(this.selectors.errorMessage);
+    for (const n of nodes) {
+      const t = (await n.getText()) || "";
+      if (regex.test(t)) return true;
+    }
+    return false;
+  }
+
+  async fillExpirationDate(ddmmyyyyDigits) {
     try {
-      const toggleButton = await this.driver.findElement(
-        this.selectors.statusToggle
+      // Ant DatePicker input accepts typing; UI auto-inserts slashes
+      const el = await this.driver.findElement(
+        this.selectors.expirationDateInput
       );
-      const ariaChecked = await toggleButton.getAttribute("aria-checked");
-      return ariaChecked === "true";
-    } catch (error) {
-      console.log(`❌ Error checking status toggle state: ${error.message}`);
+      await this.driver.executeScript("arguments[0].scrollIntoView();", el);
+      await this.driver.sleep(300);
+      await el.clear();
+      await this.driver.sleep(300);
+      await el.sendKeys(ddmmyyyyDigits); // e.g. "01012030" -> 01/01/2030
+      await this.driver.sleep(300);
+    } catch (e) {
+      console.log("Failed to fill expiration date:", e.message);
+      throw e;
+    }
+  }
+
+  makeRelativeDate(daysOffset) {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}${mm}${yyyy}`;
+  }
+
+  async hasFieldError(field) {
+    try {
+      // Look for validation errors near specific fields
+      let selector;
+      if (field === "discountCode") {
+        selector = By.xpath(
+          '//input[@id="code"]/ancestor::div[contains(@class,"ant-form-item")]//div[contains(@class,"ant-form-item-explain")]'
+        );
+      } else if (field === "percentageOff") {
+        selector = By.xpath(
+          '//input[@id="percentageOff"]/ancestor::div[contains(@class,"ant-form-item")]//div[contains(@class,"ant-form-item-explain")]'
+        );
+      } else {
+        selector = By.css(
+          ".ant-form-item-explain-error, .ant-form-item-explain"
+        );
+      }
+      const errors = await this.driver.findElements(selector);
+      return errors.length > 0;
+    } catch (e) {
       return false;
     }
   }
 
-  async isElementEnabled(selector) {
-    const element = await this.driver.findElement(selector);
-    return await element.isEnabled();
+  async getFieldError(field) {
+    try {
+      let selector;
+      if (field === "discountCode") {
+        selector = By.xpath(
+          '//input[@id="code"]/ancestor::div[contains(@class,"ant-form-item")]//div[contains(@class,"ant-form-item-explain")]'
+        );
+      } else if (field === "percentageOff") {
+        selector = By.xpath(
+          '//input[@id="percentageOff"]/ancestor::div[contains(@class,"ant-form-item")]//div[contains(@class,"ant-form-item-explain")]'
+        );
+      } else {
+        selector = By.css(
+          ".ant-form-item-explain-error, .ant-form-item-explain"
+        );
+      }
+      const errors = await this.driver.findElements(selector);
+      if (errors.length > 0) {
+        return await errors[0].getText();
+      }
+      return "";
+    } catch (e) {
+      return "";
+    }
   }
 
-  async getFieldValue(selector) {
-    const element = await this.driver.findElement(selector);
-    return await element.getAttribute("value");
+  async isOnEditDiscountPage() {
+    const url = await this.driver.getCurrentUrl();
+    return url.includes("/discount/edit");
   }
 }
-
-export default CreateDiscountPage;

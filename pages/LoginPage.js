@@ -9,36 +9,17 @@ class LoginPage {
     this.driver = driver;
     this.loginUrl = process.env.LOGIN_URL;
 
-    // Selectors - optimized for Ant Design
+    // Selectors - based on actual HTML structure
     this.selectors = {
-      usernameInput: By.xpath(
-        "//input[@type='text'] | //input[@placeholder='User name']"
-      ),
-      passwordInput: By.xpath(
-        "//input[@type='password'] | //input[@name='password']"
-      ),
-      usernameError: By.xpath(
-        "//div[contains(@class,'ant-form-item-explain') or contains(@class,'error') or contains(@class,'help-block')]//*[contains(text(),'Please input') or contains(text(),'username') or contains(text(),'required')]"
-      ),
-      passwordError: By.xpath(
-        "//div[contains(@class,'ant-form-item-explain') or contains(@class,'error') or contains(@class,'help-block')]//*[contains(text(),'Please input') or contains(text(),'password') or contains(text(),'required')]"
-      ),
-      validationErrors: By.xpath(
-        "//div[contains(@class,'ant-form-item-explain') or contains(@class,'error') or contains(@class,'help-block') or contains(@class,'invalid-feedback')] | //*[contains(text(),'Please input') or contains(text(),'required') or contains(text(),'This field is required')]"
-      ),
-      rememberMeCheckbox: By.xpath(
-        "//input[@type='checkbox'] | //span[contains(@class,'ant-checkbox')]"
-      ),
-      submitButton: By.xpath(
-        "//button[@type='submit'] | //button[text()='Submit'] | //button[contains(@class, 'ant-btn-primary')] | //button[contains(text(), 'Login')] | //input[@type='submit'] | //button[contains(@class, 'submit')]"
-      ),
-      forgotPasswordLink: By.xpath(
-        "//a[contains(text(), 'Forgot your password')]"
-      ),
-      loginForm: By.xpath("//form | //div[contains(@class, 'ant-form')]"),
-      errorMessage: By.xpath(
-        "//div[contains(@class,'ant-message')] | //div[contains(@class,'ant-notification')] | //*[contains(text(),'Incorrect email or password')] | //*[contains(text(),'The account does not exist')] | //*[contains(text(),'Make sure you entered correctly')] | //*[contains(text(),'Invalid')] | //*[contains(text(),'error')] | //*[@class='error'] | //*[contains(@class, 'alert')] | //*[contains(@class, 'message')] | //*[contains(text(), 'fail')] | //*[contains(text(), 'denied')]"
-      ),
+      usernameInput: By.id("loginForm_username"),
+      passwordInput: By.id("loginForm_password"),
+      rememberMeCheckbox: By.css(".ant-checkbox-input"),
+      rememberMeWrapper: By.css(".ant-checkbox-wrapper"),
+      submitButton: By.css("button[type='submit']"),
+      forgotPasswordLink: By.css("a[href='/auth/forgot-password']"),
+      loginForm: By.id("loginForm"),
+      validationErrors: By.css(".ant-form-item-explain-error"),
+      errorMessage: By.css(".ant-message, .ant-notification"),
     };
   }
 
@@ -47,14 +28,7 @@ class LoginPage {
    */
   async open() {
     await this.driver.get(this.loginUrl);
-    await DriverFactory.waitForVisible(
-      this.driver,
-      this.selectors.usernameInput
-    );
-    await DriverFactory.waitForVisible(
-      this.driver,
-      this.selectors.passwordInput
-    );
+    await DriverFactory.waitForVisible(this.driver, this.selectors.loginForm);
   }
 
   /**
@@ -66,10 +40,33 @@ class LoginPage {
       this.driver,
       this.selectors.usernameInput
     );
-    // Clear field multiple times to ensure it's empty
+
+    // Aggressive clearing for Ant Design forms
+    await usernameField.click(); // Focus first
     await usernameField.clear();
-    await usernameField.sendKeys("");
     await this.driver.executeScript("arguments[0].value = '';", usernameField);
+    await this.driver.executeScript(
+      "arguments[0].setAttribute('value', '');",
+      usernameField
+    );
+
+    // Use keyboard shortcuts to clear (Ctrl+A, Delete)
+    const Key = this.driver.Key || require("selenium-webdriver").Key;
+    await usernameField.sendKeys(Key.CONTROL + "a");
+    await usernameField.sendKeys(Key.DELETE);
+    await usernameField.sendKeys(Key.BACK_SPACE);
+
+    // Trigger events to notify Ant Design
+    await this.driver.executeScript(
+      `
+      const element = arguments[0];
+      element.value = '';
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    `,
+      usernameField
+    );
+
     if (username) {
       await usernameField.sendKeys(username);
     }
@@ -84,10 +81,33 @@ class LoginPage {
       this.driver,
       this.selectors.passwordInput
     );
-    // Clear field multiple times to ensure it's empty
+
+    // Aggressive clearing for Ant Design forms
+    await passwordField.click(); // Focus first
     await passwordField.clear();
-    await passwordField.sendKeys("");
     await this.driver.executeScript("arguments[0].value = '';", passwordField);
+    await this.driver.executeScript(
+      "arguments[0].setAttribute('value', '');",
+      passwordField
+    );
+
+    // Use keyboard shortcuts to clear (Ctrl+A, Delete)
+    const Key = this.driver.Key || require("selenium-webdriver").Key;
+    await passwordField.sendKeys(Key.CONTROL + "a");
+    await passwordField.sendKeys(Key.DELETE);
+    await passwordField.sendKeys(Key.BACK_SPACE);
+
+    // Trigger events to notify Ant Design
+    await this.driver.executeScript(
+      `
+      const element = arguments[0];
+      element.value = '';
+      element.dispatchEvent(new Event('input', { bubbles: true }));
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    `,
+      passwordField
+    );
+
     if (password) {
       await passwordField.sendKeys(password);
     }
@@ -99,17 +119,41 @@ class LoginPage {
    */
   async toggleRememberMe(shouldCheck = true) {
     try {
-      const checkbox = await DriverFactory.waitForVisible(
-        this.driver,
-        this.selectors.rememberMeCheckbox,
-        3000
+      // Use findElement instead of waitForVisible since the checkbox exists but might be hidden
+      const checkbox = await this.driver.findElement(
+        this.selectors.rememberMeCheckbox
       );
+
       const isChecked = await checkbox.isSelected();
+      console.log(
+        `🔍 Checkbox current state: ${isChecked}, want: ${shouldCheck}`
+      );
+
       if (isChecked !== shouldCheck) {
-        await checkbox.click();
+        // Try clicking the wrapper first (Ant Design pattern)
+        try {
+          const wrapper = await this.driver.findElement(
+            this.selectors.rememberMeWrapper
+          );
+          await this.driver.executeScript("arguments[0].click();", wrapper);
+          console.log("✅ Clicked checkbox wrapper using JavaScript");
+        } catch (wrapperError) {
+          // Fallback to clicking the input directly with JavaScript
+          await this.driver.executeScript("arguments[0].click();", checkbox);
+          console.log("✅ Clicked checkbox input directly using JavaScript");
+        }
+
+        // Wait a moment for the state to update
+        await this.driver.sleep(500);
+
+        // Verify the state changed
+        const newState = await checkbox.isSelected();
+        console.log(`🔍 Checkbox new state: ${newState}`);
+      } else {
+        console.log("✅ Checkbox already in desired state");
       }
     } catch (error) {
-      console.warn("Remember me checkbox not found, skipping...");
+      console.warn("❌ Remember me checkbox not found:", error.message);
     }
   }
 
@@ -172,23 +216,15 @@ class LoginPage {
   async debugValidationErrors() {
     try {
       console.log("🔍 Debugging validation errors...");
-
-      // Look for any text containing validation keywords
-      const allElements = await this.driver.findElements(
-        By.xpath(
-          "//*[contains(text(),'Please') or contains(text(),'required') or contains(text(),'input') or contains(text(),'field')]"
-        )
+      const validationElements = await this.driver.findElements(
+        this.selectors.validationErrors
       );
 
-      for (let i = 0; i < allElements.length; i++) {
+      for (const element of validationElements) {
         try {
-          const text = await allElements[i].getText();
-          const tagName = await allElements[i].getTagName();
-          const className = await allElements[i].getAttribute("class");
+          const text = await element.getText();
           if (text.trim()) {
-            console.log(
-              `Found element: ${tagName}, class: ${className}, text: "${text}"`
-            );
+            console.log(`Validation error: "${text}"`);
           }
         } catch (e) {
           // Skip if element is stale
@@ -204,22 +240,10 @@ class LoginPage {
    */
   async hasValidationErrors() {
     try {
-      // Check for generic validation errors first
       const validationErrors = await this.driver.findElements(
         this.selectors.validationErrors
       );
-      if (validationErrors.length > 0) {
-        return true;
-      }
-
-      // Check specific field errors
-      const usernameError = await this.driver.findElements(
-        this.selectors.usernameError
-      );
-      const passwordError = await this.driver.findElements(
-        this.selectors.passwordError
-      );
-      return usernameError.length > 0 || passwordError.length > 0;
+      return validationErrors.length > 0;
     } catch (error) {
       return false;
     }
@@ -240,38 +264,41 @@ class LoginPage {
   }
 
   /**
-   * Clear all form fields
+   * Clear all form fields and trigger validation
    */
   async clearAllFields() {
     try {
-      // Clear username field
+      console.log("🧹 Clearing all form fields...");
+
+      // Clear username
+      await this.fillUsername("");
+      // Clear password
+      await this.fillPassword("");
+
+      // Click somewhere to trigger validation errors
       const usernameField = await DriverFactory.waitForVisible(
         this.driver,
-        this.selectors.usernameInput,
-        5000
+        this.selectors.usernameInput
       );
-      await usernameField.clear();
-      await this.driver.executeScript(
-        "arguments[0].value = '';",
-        usernameField
-      );
-
-      // Clear password field
-      const passwordField = await DriverFactory.waitForVisible(
-        this.driver,
-        this.selectors.passwordInput,
-        5000
-      );
-      await passwordField.clear();
-      await this.driver.executeScript(
-        "arguments[0].value = '';",
-        passwordField
-      );
-
-      // Click on username field to trigger any validation
       await usernameField.click();
+
+      console.log("✅ Form fields cleared");
     } catch (error) {
-      console.warn("Failed to clear all fields:", error.message);
+      console.warn("❌ Failed to clear all fields:", error.message);
+    }
+  }
+
+  /**
+   * Refresh the login page (last resort for clearing)
+   */
+  async refreshPage() {
+    try {
+      console.log("🔄 Refreshing login page to ensure clean state...");
+      await this.driver.navigate().refresh();
+      await DriverFactory.waitForVisible(this.driver, this.selectors.loginForm);
+      console.log("✅ Page refreshed");
+    } catch (error) {
+      console.warn("❌ Failed to refresh page:", error.message);
     }
   }
 
@@ -280,27 +307,10 @@ class LoginPage {
    */
   async getErrorMessage() {
     try {
-      // First try to find any error elements
       const errorElements = await this.driver.findElements(
         this.selectors.errorMessage
       );
-
-      if (errorElements.length === 0) {
-        // Also check for any elements with error-related text content
-        const allElements = await this.driver.findElements(
-          By.xpath(
-            "//*[contains(text(), 'Incorrect') or contains(text(), 'invalid') or contains(text(), 'wrong') or contains(text(), 'fail') or contains(text(), 'error') or contains(text(), 'denied')]"
-          )
-        );
-
-        if (allElements.length > 0) {
-          return await allElements[0].getText();
-        }
-
-        return null;
-      }
-
-      return await errorElements[0].getText();
+      return errorElements.length > 0 ? await errorElements[0].getText() : null;
     } catch (error) {
       return null;
     }
